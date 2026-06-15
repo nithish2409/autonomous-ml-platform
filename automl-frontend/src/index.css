@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* ── Custom theme tokens (matching Stitch design) ──────── */
+@theme {
+  --color-primary: #137fec;
+  --color-background-dark: #101922;
+  --color-surface-dark: #1a2634;
+  --color-border-dark: #2a3b4d;
+  --font-family-display: "Inter", sans-serif;
+  --font-family-body: "Inter", sans-serif;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111a22;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #324d67;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4b6b8b;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+body {
+  font-family: "Inter", sans-serif;
+  background: var(--color-background-dark);
+  color: #f1f5f9;
+  margin: 0;
+}
+
+/* ── Material symbols ──────────────────────────────────── */
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}

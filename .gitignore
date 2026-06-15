@@ -1,0 +1,49 @@
+# Python caches and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+
+# Node / JS dependencies and builds
+node_modules/
+dist/
+dist-ssr/
+automl-frontend/dist/
+
+# Testing & notebooks
+.pytest_cache/
+.ipynb_checkpoints/
+.cache/
+
+# IDE / Editor configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+*.sln
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Credentials & secrets
+.env
+.env.*
+!.env.example
+
+# Diagnostic logs and temp text files
+*.log
+logs*.txt
+logs.txt
+output.txt
+test_out.txt
+versions_out.txt
+versions_out_utf8.txt

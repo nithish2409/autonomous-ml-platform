@@ -1,0 +1,118 @@
+# CHAPTER 1: INTRODUCTION (~8 pages)
+
+---
+
+Machine learning has become a cornerstone of modern technological innovation, powering applications across healthcare, finance, autonomous systems, natural language processing, and countless other domains. Organizations increasingly rely on machine learning models to make critical decisions — from fraud detection and credit scoring to predictive maintenance and customer segmentation. The global machine learning market, valued at approximately $15.44 billion in 2021, is projected to reach $209.91 billion by 2029, reflecting the explosive growth in adoption across industries.
+
+However, while significant research and development effort has been devoted to building and training machine learning models, far less attention has been given to the operational challenges of maintaining models once they are deployed in production. This gap between model development and sustainable production operation has given rise to the discipline of Machine Learning Operations (MLOps). MLOps aims to streamline the end-to-end machine learning lifecycle, encompassing model development, deployment, monitoring, and governance.
+
+A critical challenge in production machine learning is **data drift** — the phenomenon where the statistical properties of incoming data gradually diverge from the data on which the model was originally trained. Data drift can be caused by seasonality, changing user behavior, external events, or evolving market conditions. When data drift occurs, the assumptions embedded in the trained model become invalid, leading to degraded prediction accuracy and potentially harmful decisions.
+
+Despite the availability of MLOps frameworks such as MLflow, Kubeflow, and Amazon SageMaker, most existing systems focus on model tracking, experiment logging, and deployment orchestration. They provide monitoring dashboards and alerting capabilities, but ultimately rely on human operators to interpret alerts, decide on corrective actions, and manually trigger retraining pipelines. This manual intervention creates a bottleneck that is both slow and error-prone, especially in environments where multiple models are deployed simultaneously and data distributions shift continuously.
+
+The concept of **autonomous machine learning lifecycle management** addresses this gap by creating closed-loop systems that can independently detect problems, reason about corrective actions, execute retraining workflows, evaluate new candidates, and safely promote superior models — all without requiring manual human intervention. Such systems represent the next evolution of MLOps, moving from passive monitoring to active, self-healing infrastructure.
+
+This project presents the **Autonomous Machine Learning Lifecycle Platform** — a closed-loop, self-adaptive MLOps infrastructure designed to detect real-time statistical data drift, make structured AI-driven retraining decisions, execute strategy-based hyperparameter optimization, evaluate candidate models against production baselines, safely promote outperforming models, and maintain full model version lineage and governance. Unlike traditional MLOps systems that only monitor or alert, this platform performs autonomous lifecycle orchestration, enabling machine learning systems to adapt without manual intervention.
+
+The platform is built using modern technologies including FastAPI (Python), PostgreSQL, MinIO (S3-compatible object storage), Ollama with LLaMA3 (local LLM inference), and a React-based dashboard — all orchestrated through Docker Compose. The system has been designed with production-grade principles: asynchronous API handling, immutable model versioning, policy-enforced safety guardrails, and comprehensive observability through Prometheus metrics and structured automation audit trails.
+
+---
+
+## 1.1 System Specifications
+
+### 1.1.1 Hardware Specifications
+
+The following hardware specifications are recommended for running the Autonomous ML Lifecycle Platform:
+
+**Table 1.1: Hardware Specifications**
+
+| Component | Minimum Requirement | Recommended |
+|---|---|---|
+| Processor (CPU) | Intel Core i5 / AMD Ryzen 5 (quad-core) | Intel Core i7 / AMD Ryzen 7 (8-core or higher) |
+| RAM | 8 GB | 16 GB or higher |
+| Storage (Disk) | 50 GB SSD | 100 GB SSD or higher |
+| GPU | Not required (CPU-based training) | NVIDIA GPU with CUDA support (for accelerated Ollama LLM inference) |
+| Network | Stable internet connection (for dependency installation) | Gigabit LAN / stable broadband |
+| Display | 1366 × 768 resolution | 1920 × 1080 (Full HD) or higher |
+
+**Notes:**
+- The LLM inference server (Ollama with LLaMA3) is the most resource-intensive component. With 8 GB RAM, inference may be slower; 16 GB is recommended for responsive LLM reasoning.
+- Model training (scikit-learn, XGBoost, Optuna) runs on CPU. Training time scales with dataset size and the number of Optuna trials configured.
+- MinIO and PostgreSQL have modest resource requirements and run efficiently within Docker containers.
+- Docker Desktop must be installed with sufficient allocated memory (minimum 4 GB for Docker).
+
+---
+
+### 1.1.2 Software Specifications
+
+**Table 1.2: Software Specifications**
+
+| Software | Version | Purpose |
+|---|---|---|
+| **Operating System** | Windows 10/11, Ubuntu 20.04+, or macOS 12+ | Host OS |
+| **Python** | 3.10+ | Backend development language |
+| **Node.js** | 18+ | Frontend build tooling |
+| **Docker Desktop** | 4.0+ | Container orchestration |
+| **Docker Compose** | v2+ | Multi-container deployment |
+| **Git** | 2.30+ | Version control |
+
+**Backend Dependencies:**
+
+| Library | Purpose |
+|---|---|
+| FastAPI | Asynchronous REST API framework |
+| Uvicorn (standard) | ASGI server |
+| SQLAlchemy | Async ORM for PostgreSQL |
+| asyncpg | Async PostgreSQL driver |
+| psycopg2-binary | PostgreSQL adapter |
+| Pydantic | Data validation and serialization |
+| python-dotenv | Environment variable management |
+| APScheduler | Scheduled monitoring jobs |
+| HTTPX | Async HTTP client (Ollama API) |
+| Docker SDK (Python) | Containerized training management |
+| MinIO (Python client) | S3-compatible object storage |
+| Pandas | Data manipulation and analysis |
+| python-multipart | File upload handling |
+| joblib | Model serialization/deserialization |
+| scikit-learn | Machine learning model training |
+| XGBoost | Gradient boosting model training |
+| Prometheus Client | Metrics exposition |
+| Optuna | Bayesian hyperparameter optimization |
+| imbalanced-learn | SMOTE for class imbalance handling |
+
+**Frontend Dependencies:**
+
+| Library | Purpose |
+|---|---|
+| React (JSX) | Component-based UI framework |
+| Vite | Build tool with HMR |
+| Axios | HTTP client for API calls |
+| React Router DOM | Client-side routing |
+| Recharts / Chart.js | Data visualization |
+
+**Infrastructure Services (via Docker Compose):**
+
+| Service | Image | Port(s) | Purpose |
+|---|---|---|---|
+| PostgreSQL | `postgres:15` | 5432 | Relational database for metadata, logs, states |
+| MinIO | `minio/minio` | 9000, 9001 | S3-compatible object storage for models and datasets |
+| Ollama | `ollama/ollama` | 11434 | Local LLM inference server (LLaMA3) |
+| Backend | Custom (FastAPI) | 8000 | Application server |
+
+**Development Tools:**
+
+| Tool | Purpose |
+|---|---|
+| VS Code / PyCharm | IDE for development |
+| Postman / Thunder Client | API testing |
+| draw.io / Lucidchart | Architecture and flow diagrams |
+| Chrome DevTools | Frontend debugging |
+| pgAdmin / DBeaver | Database management and inspection |
+
+---
+
+> **Formatting Notes:**
+> - Apply DinPro Regular font; Headings at size 14, Body text at size 12
+> - Line spacing: 1.5, Margins: 1 inch on all sides
+> - Justify all body text
+> - Center-align all tables

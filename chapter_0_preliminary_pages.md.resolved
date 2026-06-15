@@ -1,0 +1,209 @@
+# PRELIMINARY PAGES (~3 pages)
+
+---
+
+## Page 1 — Title Page (Cover Page / Front Page)
+
+```
+[COLLEGE LOGO]
+
+DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING
+[COLLEGE NAME]
+[CITY, STATE – PIN CODE]
+[AFFILIATED UNIVERSITY NAME]
+
+PROJECT REPORT
+
+ON
+
+AUTONOMOUS MACHINE LEARNING LIFECYCLE PLATFORM
+A Self-Evolving, Drift-Aware ML Lifecycle Orchestration System
+with Structured AI Decision Governance and Safe Model Promotion
+
+Submitted in partial fulfillment of the requirements for the award of the degree of
+
+BACHELOR OF TECHNOLOGY / MASTER OF SCIENCE
+IN
+DATA SCIENCE / COMPUTER SCIENCE AND ENGINEERING
+
+Submitted by:
+
+[YOUR NAME]
+[REGISTER NUMBER / ROLL NUMBER]
+
+Under the guidance of:
+
+[GUIDE NAME]
+[DESIGNATION]
+[DEPARTMENT]
+
+[MONTH, YEAR]
+```
+
+---
+
+## Page 2 — Certificate
+
+```
+DEPARTMENT OF [DEPARTMENT NAME]
+[COLLEGE NAME]
+
+CERTIFICATE
+
+This is to certify that the project report titled "AUTONOMOUS MACHINE LEARNING
+LIFECYCLE PLATFORM" submitted by [YOUR NAME] (Register No: [XXXX]) is a
+bonafide record of the project work done under my supervision in partial fulfillment
+of the requirements for the award of the degree of [DEGREE NAME] in [BRANCH]
+during the academic year [YEAR].
+
+Guide                                    Head of the Department
+[GUIDE NAME]                             [HOD NAME]
+[DESIGNATION]                            [DESIGNATION]
+
+Internal Examiner                        External Examiner
+Signature:                               Signature:
+Date:                                    Date:
+```
+
+---
+
+## Declaration
+
+```
+DECLARATION
+
+I hereby declare that the project report titled "AUTONOMOUS MACHINE LEARNING
+LIFECYCLE PLATFORM" submitted to [COLLEGE NAME] in partial fulfillment of the
+requirements for the award of the degree of [DEGREE NAME] in [BRANCH] is a record
+of original work done by me under the supervision of [GUIDE NAME], [DESIGNATION],
+Department of [DEPARTMENT], [COLLEGE NAME].
+
+I further declare that this project report has not been submitted to any other
+university or institution for the award of any degree or diploma.
+
+Place: [CITY]
+Date: [DATE]
+
+[YOUR NAME]
+[REGISTER NUMBER]
+```
+
+---
+
+## Acknowledgement
+
+```
+ACKNOWLEDGEMENT
+
+I express my sincere gratitude to [GUIDE NAME], [DESIGNATION], Department of
+[DEPARTMENT], [COLLEGE NAME], for the continuous guidance, motivation, and
+invaluable suggestions throughout the course of this project.
+
+I am deeply thankful to [HOD NAME], Head of the Department of [DEPARTMENT], for
+providing the necessary infrastructure and support.
+
+I extend my heartfelt thanks to [PRINCIPAL NAME], Principal, [COLLEGE NAME],
+for providing a conducive academic environment.
+
+I also acknowledge the support of my family and friends, whose constant motivation
+helped me overcome the challenges encountered during this project.
+
+[YOUR NAME]
+[REGISTER NUMBER]
+```
+
+---
+
+## Abstract (~250–300 words)
+
+```
+ABSTRACT
+
+Machine learning models deployed in production environments are susceptible to
+performance degradation over time due to shifts in the underlying data distributions,
+commonly known as data drift. Traditional MLOps systems rely on human operators to
+detect such drift, decide on corrective actions, and manually retrain and redeploy
+models — a process that is slow, error-prone, and difficult to scale.
+
+This project presents the design and implementation of an Autonomous Machine Learning
+Lifecycle Platform — a closed-loop, self-adaptive system capable of autonomously
+managing the complete lifecycle of machine learning models from deployment through
+monitoring, retraining, evaluation, and promotion. The platform continuously monitors
+deployed models for statistical data drift by comparing real-time inference patterns
+against baseline distributions. When significant drift is detected, a Large Language
+Model (LLM) analyzes the context and recommends a structured retraining strategy.
+
+The system incorporates a comprehensive policy and guardrails layer that enforces
+freeze windows, cost limits, retraining rate limits, and severity-based approval
+workflows to ensure safe and governed model updates. The training pipeline features
+multi-phase optimization including automated feature selection, class imbalance
+handling, Bayesian hyperparameter tuning using Optuna, automated model selection
+across multiple algorithms, and ensemble learning techniques.
+
+Candidate models are evaluated against production baselines using configurable
+improvement thresholds, and only models that demonstrate statistically meaningful
+improvement are promoted to production. Complete model version lineage is maintained
+for governance and auditability.
+
+The platform is built using FastAPI, PostgreSQL, MinIO, Ollama (LLaMA3), and a
+React-based dashboard, all orchestrated through Docker Compose. The system
+demonstrates the ability to detect drift, make intelligent retraining decisions, and
+safely promote superior models without human intervention, thereby reducing
+operational overhead and preventing silent model degradation.
+```
+
+---
+
+## Table of Contents
+
+```
+TABLE OF CONTENTS
+
+                                                                    Page No.
+
+Abstract ............................................................. i
+
+CHAPTER 1: INTRODUCTION
+  1.1    System Specifications ....................................... 2
+  1.1.1  Hardware Specifications ..................................... 2
+  1.1.2  Software Specifications ..................................... 3
+
+CHAPTER 2: SYSTEM ANALYSIS
+  2.1    Review of Literature ........................................ 5
+  2.2    Existing System ............................................. 9
+  2.2.1  Drawbacks ................................................... 11
+  2.3    Proposed System ............................................. 12
+  2.4    Mapping to SDG Goals ........................................ 14
+  2.5    Addressing Real-World Challenges ............................ 15
+  2.5.1  Relevance to Society, Industry, or Research ................. 15
+  2.5.2  Significance and Practical Applications ..................... 16
+
+CHAPTER 3: PROJECT DESCRIPTION
+  3.1    Front End ................................................... 17
+  3.2    Back End .................................................... 20
+  3.3    Project Objectives .......................................... 23
+  3.4    Problem Definition .......................................... 24
+  3.5    Workflow Diagram ............................................. 25
+  3.6    Description of Modules ...................................... 26
+  3.7    Database Design ............................................. 29
+
+CHAPTER 4: DATA ANALYSIS AND INFERENCE
+  4.1    Data Description ............................................ 31
+  4.2    Experimental Results ........................................ 36
+  4.3    Dashboard Storytelling ...................................... 44
+
+CHAPTER 5: CONCLUSION AND FUTURE ENHANCEMENT
+  5.1    Conclusion .................................................. 47
+  5.2    Scope for Further Enhancement ............................... 48
+  5.3    Publications ................................................ 50
+
+CHAPTER 6: BIBLIOGRAPHY ............................................. 51
+
+CHAPTER 7: APPENDICES
+  A.     Source Code ................................................. 53
+  B.     Screenshots ................................................. 58
+```
+
+---
+
+> **Note:** Adjust page numbers once content is finalized in your word processor.

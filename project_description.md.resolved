@@ -1,0 +1,442 @@
+# Autonomous ML Lifecycle Platform
+
+**Complete System Description and End-to-End Workflow**
+
+---
+
+## 1. System Overview
+
+The Autonomous ML Lifecycle Platform is a closed-loop, self-adaptive MLOps infrastructure designed to:
+
+- Detect real-time statistical data drift
+- Make structured AI-driven retraining decisions
+- Execute strategy-based hyperparameter optimization
+- Evaluate candidate models against production baselines
+- Safely promote outperforming models
+- Maintain full model version lineage and governance
+
+Unlike traditional MLOps systems that only monitor or alert, this platform performs **autonomous lifecycle orchestration**, enabling machine learning systems to adapt without manual intervention.
+
+**One-Line System Definition:**
+> A self-evolving, drift-aware, autonomous ML lifecycle orchestration platform with structured AI decision governance and safe model promotion.
+
+---
+
+## 2. High-Level Architecture
+
+The system consists of the following core layers:
+
+| Layer | Responsibility |
+|---|---|
+| **Dataset Registry** | Stores dataset metadata, column schemas, and baseline statistical profiles (mean, std, missing count per feature) |
+| **Model Registry** | Maintains immutable model versions, production version references, lifecycle state (active/inactive/archived), and version lineage |
+| **Inference Layer** | Serves live predictions using cached model artifacts and logs feature inputs to the InferenceLog table |
+| **Monitoring Engine** | Continuously computes statistical drift, performance deltas, system metrics (latency, request count), and generates multi-level alerts |
+| **LLM Decision Engine** | Analyzes drift context via Ollama (LLaMA3) and returns structured JSON decisions with policy enforcement |
+| **Strategy Engine** | Maps drift types to retraining strategies (full search, quick tune, incremental) |
+| **Training Pipeline** | Executes multi-phase training with feature selection, data rebalancing, Optuna-based hyperparameter tuning, automated model selection, threshold optimization, and ensemble learning |
+| **Model Evaluator** | Compares candidate metrics (accuracy, F1, R², MSE) against production baselines using configurable improvement thresholds |
+| **Policy & Guardrails Layer** | Enforces freeze windows, GPU limits, daily cost caps, retrain rate limits, severity-based approval, and confidence thresholds |
+| **Automation Executor** | Orchestrates the full retrain → evaluate → promote pipeline with idempotent execution and cooldown management |
+| **Artifact Storage (MinIO)** | Stores serialized model binaries (`.joblib`) and raw dataset CSVs |
+| **Metadata Storage (PostgreSQL)** | Stores versioning, logs, metrics, policies, and automation states via async SQLAlchemy |
+
+---
+
+## 3. End-to-End Workflow
+
+### PHASE A: Baseline Initialization
+
+**Step 1: Dataset Upload**
+
+- CSV dataset is uploaded via FastAPI endpoint.
+- File is validated by parsing with pandas.
+- A UUID is generated for the dataset.
+- Raw CSV is uploaded to MinIO at `datasets/{dataset_id}.csv`.
+- Column schema is extracted and stored.
+
+**Step 2: Baseline Profiling**
+
+The system computes per-column baseline statistics:
+
+- **Mean** per numeric feature
+- **Standard deviation** per numeric feature
+- **Missing count** per column
+
+These values are locked and stored in the Dataset Registry as `baseline_stats` (JSONB).
+
+**Step 3: Initial Model Registration and Baseline Training**
+
+- A model entry is created in the Model Registry linked to the dataset.
+- Framework (e.g., `sklearn`) and model class (e.g., `RandomForestClassifier`) are specified.
+- A quick baseline "v1" model is automatically trained on the dataset using in-process sklearn training.
+- Train-test split is performed (default 80/20).
+- Accuracy and F1-score (classification) or MSE and R² (regression) are computed.
+
+**Step 4: Artifact Persistence**
+
+- Model is serialized using `joblib.dump()` to a `.joblib` file.
+- Uploaded to MinIO at `models/{model_id}/{version}/model.joblib`.
+- Artifact path is stored in the model version record.
+
+**Step 5: Version Registration**
+
+- [ModelVersion](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/models/model_version.py#8-20) v1 is created with:
+  - `version_number`, `artifact_path`, [metrics](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/inference_service.py#187-196), `hyperparameters`, `parent_version`
+- `ModelRegistry.current_version` is set to `v1`.
+- `ModelRegistry.status` is set to [active](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/model_registry_service.py#145-158).
+- The model is now deployed for inference.
+
+---
+
+### PHASE B: Live Inference and Monitoring
+
+**Step 6: Inference Serving**
+
+- A user sends a prediction request with feature values.
+- Backend loads the active model from MinIO (with TTL-aware in-memory caching, 30-minute TTL).
+- Input DataFrame is constructed; only numeric columns are selected.
+- Prediction is generated via `model.predict()`.
+- Inference latency is measured and recorded (Prometheus histogram).
+- Input features and prediction are logged in the `inference_logs` table.
+
+**Step 7: Real-Time Drift Monitoring**
+
+The Monitoring Engine analyzes recent inference logs against baseline statistics:
+
+For each numeric feature, drift is computed as:
+
+```
+drift = |current_mean − baseline_mean| / baseline_std
+```
+
+Values are normalized by dividing by 3.0 and clamped to the range [0, 1]:
+
+```
+feature_drift = min(drift / 3.0, 1.0)
+```
+
+Global Drift Score is computed as:
+
+```
+Global Drift = sum(feature_drifts) / N
+```
+
+where N is the number of matched numeric features.
+
+Monitoring uses a **rolling window of 100 most recent inference logs**.
+
+Additionally, the engine computes:
+- **Performance delta**: difference in accuracy/F1/train_score between the current and previous model versions.
+- **System metrics**: request count and average latency from recent logs.
+- **Severity classification**: [low](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/llm_decision_engine.py#76-110), `medium`, `high`, or `critical` based on drift score and performance delta thresholds.
+
+---
+
+### PHASE C: Drift Detection and Alerting
+
+**Step 8: Threshold-Based Alert Generation**
+
+When thresholds are exceeded, the system generates structured alerts logged to `automation_logs`:
+
+| Alert Type | Trigger Condition |
+|---|---|
+| `DRIFT_ALERT` | Drift score > 0.2 (WARNING) or > 0.5 (CRITICAL) |
+| `PERFORMANCE_ALERT` | Performance delta drops below −0.1 |
+| `LATENCY_ALERT` | Average latency exceeds 500ms |
+
+In production, drift monitoring is scheduler-based (configurable 5-minute interval via [monitoring_scheduler.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/scheduler/monitoring_scheduler.py)). In demo mode, a manual trigger is exposed.
+
+**Step 9: LLM Decision Engine**
+
+Inputs to the LLM include:
+- Drift score
+- Performance delta
+- Request count
+- Latency average
+- Severity level
+- Current model version and framework
+
+The LLM (LLaMA3 via Ollama) returns structured JSON:
+
+```json
+{
+  "analysis": "reasoning text",
+  "strategy": "RETRAIN" or "ALERT"
+}
+```
+
+Strict validation is enforced:
+- Only two allowed strategies: `RETRAIN` and `ALERT`
+- JSON schema validation
+- Enum enforcement
+- Markdown/commentary rejection
+- Fallback to `ALERT` if uncertain
+
+The response is validated through a policy layer that checks:
+1. Only whitelisted actions are permitted
+2. Cooldown period for the model (15 minutes, relaxed in demo mode)
+3. Duplicate consecutive action prevention
+
+---
+
+### PHASE D: Policy and Guardrails
+
+Before execution, the Policy Evaluator validates:
+
+| Check | Description |
+|---|---|
+| **Freeze window** | Blocks all actions during deployment freeze |
+| **GPU guardrail** | Requested GPU count cannot exceed `max_gpu_per_job` (default: 8) |
+| **Daily cost cap** | Projected cost cannot exceed `max_daily_cost` |
+| **Retrain rate limit** | Max retrains per 24h (default: 50) |
+| **Severity filter** | Only [low](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/llm_decision_engine.py#76-110) and `medium` severity auto-approved by default |
+| **Production block** | Production model changes require manual approval (configurable) |
+| **Confidence threshold** | Minimum confidence (default: 85%) and max cost (default: $500) for auto-approval |
+| **Critical severity** | High/critical severity always requires human review |
+
+If all policies are satisfied, execution proceeds. Otherwise, the decision is flagged for human review or blocked entirely.
+
+---
+
+### PHASE E: Autonomous Retraining
+
+**Step 10: Drift Analysis**
+
+The `drift_analyzer` module classifies drift into types:
+- `concept_drift`
+- `feature_drift`
+- `no_drift`
+
+**Step 11: Strategy Selection**
+
+The Strategy Engine maps drift type to a retraining strategy:
+
+| Drift Type | Strategy | Behavior |
+|---|---|---|
+| `concept_drift` | `full_search` | Full hyperparameter search with all enhancements |
+| `feature_drift` | `quick_tune` | Targeted hyperparameter tuning |
+| `no_drift` | `incremental` | Minimal retraining with defaults |
+| Non-retrain action | `no_action` | Skipped |
+
+**Step 12: Training Configuration Generation**
+
+The `config_generator` maps the strategy to a training configuration that controls:
+- Feature selection (method, top_k)
+- Hyperparameter search (enabled, trials count)
+- Threshold optimization (enabled, metric)
+- Data rebalancing (enabled, imbalance threshold)
+- Model selection (enabled, metric)
+- Ensemble (enabled, weight)
+
+**Step 13: Early Stopping Check**
+
+Before training, the system checks training history for diminishing returns. If no meaningful improvement has been observed in recent runs, training is skipped with an `early_stopped` status.
+
+**Step 14: Resource Management**
+
+Training resources are adjusted based on dataset size via `adjust_training_resources()`.
+
+**Step 15: Multi-Phase Model Training**
+
+The [TrainingRunner](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/training_runner.py#134-368) executes an in-process training pipeline:
+
+1. **Feature Selection** (Phase A): Selects top-k features via model importance or other methods.
+2. **Data Rebalancing** (Phase B): Handles class imbalance when imbalance ratio exceeds threshold.
+3. **Hyperparameter Search** (Phase A): Optuna Bayesian optimization with model-specific search spaces:
+   - **RandomForest**: `n_estimators` (50–300), `max_depth` (3–20)
+   - **LogisticRegression**: `C` (0.01–10.0, log scale)
+   - **XGBoost**: `learning_rate` (0.01–0.3), `max_depth` (3–10)
+   - Objective: maximizes F1-weighted via 3-fold cross-validation
+4. **Automated Model Selection** (Phase B): Trains multiple algorithms and selects the best performer.
+5. **Threshold Optimization** (Phase A): Finds optimal classification threshold for F1 or other metrics.
+6. **Ensemble** (Phase B): Optionally combines old and new models with weighted voting.
+
+**Step 16: Candidate Evaluation**
+
+The [ModelEvaluator](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/model_evaluator.py#22-215) compares candidate metrics against the current production model:
+
+- **Classification**: Accuracy delta ≥ 1% threshold, F1-score comparison
+- **Regression**: R² delta ≥ 1% threshold, MSE comparison (lower is better)
+
+If no current metrics exist (first real training), the candidate is auto-promoted.
+
+---
+
+### PHASE F: Versioning and Promotion
+
+**Step 17: Model Version Creation**
+
+A new [ModelVersion](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/models/model_version.py#8-20) entry is inserted with:
+- `version_number` (v2, v3, etc.)
+- `artifact_path` (MinIO path)
+- [metrics](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/inference_service.py#187-196) (accuracy, F1, R², MSE, selected features, leaderboard, etc.)
+- `hyperparameters` (best params from Optuna)
+- `parent_version` (lineage tracking)
+- `training_job_id` (link to training job)
+
+All versions are **immutable** — once created, they are never modified.
+
+**Step 18: Promotion Logic**
+
+- If candidate **outperforms** production (metric delta ≥ threshold):
+  - `ModelRegistry.current_version` is updated to the new version.
+  - Promotion is logged with full evaluation details.
+- Otherwise:
+  - Version is registered but **not promoted**.
+  - Previous production model remains active.
+  - No existing model is ever overwritten or deleted.
+
+---
+
+### PHASE G: Redeployment
+
+- The inference layer automatically serves the updated production version.
+- Model switching occurs **without downtime** via in-memory cache invalidation (TTL-based).
+- The [InferenceService](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/inference_service.py#28-222) resolves the active model's `current_version` on each request.
+
+---
+
+## 4. Workflows Summary
+
+| Workflow | Flow |
+|---|---|
+| **Initial Deployment** | Dataset → Profile → Register Model → Train Baseline → Serialize → Deploy |
+| **Drift Monitoring** | Inference → Log → Compute Drift → Compute Performance Delta → Classify Severity → Generate Alerts |
+| **Autonomous Retraining** | Drift Detected → LLM Decision → Policy Check → Drift Analysis → Strategy → Config Generation → Early Stopping → Feature Selection → Rebalancing → Optuna → Model Selection → Evaluate → Register Version → Promote (if better) |
+| **Governance & Safety** | Decision → Guardrails Check → Freeze/Cost/GPU/Rate Limits → Severity Review → Confidence Threshold → Controlled Update |
+
+---
+
+## 5. Data Flow Summary
+
+**Inputs:**
+- Dataset (CSV with features and target)
+- Live inference feature values
+- Drift metrics and monitoring signals
+
+**Intermediate Components:**
+- LLM structured decision (analysis + strategy)
+- Drift classification (concept/feature/no drift)
+- Training strategy and configuration
+- Optuna hyperparameter tuning results
+- Feature selection output
+- Data rebalancing metadata
+- Model selection leaderboard
+
+**Outputs:**
+- Serialized model artifact (`.joblib` in MinIO)
+- New immutable model version with full metadata
+- Updated production model (if promoted)
+- Automation logs with complete decision chain
+
+---
+
+## 6. Database Schema
+
+| Table | Purpose |
+|---|---|
+| [datasets](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/dataset_service.py#71-75) | Dataset metadata, column schema, baseline stats, MinIO path |
+| `model_registry` | Model entries with framework, model class, current version, status |
+| [model_versions](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/model_registry_service.py#536-571) | Immutable version records with metrics, hyperparameters, artifact path, parent lineage |
+| `training_jobs` | Training job status (queued/running/completed/failed), config, result metrics |
+| `inference_logs` | Input features, predictions, latency per inference request |
+| `monitoring_metrics` | Drift scores, performance deltas, request counts, latency averages, severity |
+| `automation_logs` | All automation events: alerts, decisions, executions, lifecycle events |
+| `automation_state` | Per-model automation state: last action, cooldown period |
+| `policies` | Configurable policy rules for auto-approval, guardrails, escalation |
+
+---
+
+## 7. Infrastructure Design
+
+Containerized microservices using Docker Compose:
+
+| Service | Technology | Port |
+|---|---|---|
+| **Backend** | FastAPI (Python, async) | 8000 |
+| **PostgreSQL** | PostgreSQL 15 with asyncpg | 5432 |
+| **MinIO** | S3-compatible object storage | 9000 (API), 9001 (Console) |
+| **Ollama** | Local LLM inference server | 11434 |
+| **Frontend** | Vite + React (JSX) | Dev server |
+
+This provides:
+- Environment isolation
+- Reproducibility
+- Scalability
+- Cloud-native architecture
+
+The **training isolation** layer additionally supports Docker-containerized training via [TrainingOrchestrator](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/training_orchestrator.py#26-481) for production use, while the [TrainingRunner](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/training_runner.py#134-368) provides lightweight in-process training for demo and development modes.
+
+---
+
+## 8. Frontend Dashboard
+
+The React frontend (Vite + JSX) provides 8 dedicated pages:
+
+| Page | Function |
+|---|---|
+| **Dashboard** | System overview with model health, drift trends, and key metrics |
+| **Dataset Upload** | CSV upload with profiling summary and baseline statistics |
+| **Models** | Model registry browser with version history, promotion, rollback, and comparison |
+| **Training** | Training job management with configuration, status tracking, and logs |
+| **Inference** | Live prediction interface with request/response logging and latency metrics |
+| **Monitoring** | Real-time drift visualization, performance trends, severity alerts, and monitoring signals |
+| **Automation** | LLM decision log, autonomous retraining triggers, execution status, and approval workflows |
+| **Policies** | Guardrail configuration: auto-approval rules, freeze windows, cost limits, severity filters |
+
+---
+
+## 9. Observability
+
+The platform includes built-in observability:
+
+- **Prometheus metrics**: Inference latency histograms, drift score gauges, training job counters, automation action counters, model version change counters
+- **Structured logging**: All services use Python `logging` with named loggers
+- **Automation audit trail**: Every decision, execution, and lifecycle event is logged to `automation_logs` with full metadata
+
+---
+
+## 10. Scalability Characteristics
+
+- Horizontal scaling of inference containers
+- Decoupled artifact storage (MinIO)
+- Asynchronous API handling (FastAPI + asyncpg)
+- Independent retraining orchestration
+- TTL-based model caching for inference performance
+- Config-driven training pipeline (all enhancements are toggleable)
+
+---
+
+## 11. Innovation Highlights
+
+- **Closed-loop ML lifecycle automation** — no human intervention required
+- **LLM as structured infrastructure decision engine** — not for content, but for operational reasoning
+- **Strategy-based retraining** — drift type determines training aggressiveness
+- **Real statistical drift detection** — normalized mean shift against baseline distributions
+- **Multi-phase training pipeline** — feature selection, rebalancing, Optuna HPO, model selection, threshold optimization, ensemble
+- **Governance-enforced promotion** — policy guardrails prevent unsafe deployments
+- **Immutable version lineage** — complete audit trail from baseline to production
+
+---
+
+## 12. Impact
+
+- Prevents silent model degradation
+- Reduces manual ML maintenance overhead
+- Enables self-healing AI systems
+- Demonstrates production-grade MLOps architecture
+- Provides full governance and compliance readiness
+
+---
+
+## 13. Future Extensions
+
+- Distributed retraining workers
+- Kubernetes deployment
+- Business-metric-based promotion criteria
+- Multi-model orchestration
+- Advanced drift metrics (PSI, KL divergence)
+- External notification integrations (Slack, PagerDuty)
+- A/B testing for model promotion
+- Multi-dataset model support

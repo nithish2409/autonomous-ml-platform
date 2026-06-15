@@ -1,0 +1,291 @@
+# CHAPTER 7: APPENDICES (~10 pages)
+
+---
+
+## Appendix A: Source Code
+
+### A.1 Drift Monitoring — Mean-Shift Computation
+
+```python
+# monitoring_service.py — Drift Score Computation
+
+async def compute_drift(self, model_id: str, db: AsyncSession):
+    """Compute statistical drift for a model against baseline."""
+    
+    # Get baseline statistics from dataset
+    dataset = await self._get_dataset(model_id, db)
+    baseline_stats = dataset.baseline_stats  # JSONB: {feature: {mean, std, missing}}
+    
+    # Get recent inference logs (rolling window of 100)
+    recent_logs = await self._get_recent_logs(model_id, db, limit=100)
+    
+    if not recent_logs:
+        return {"drift_score": 0.0, "feature_drifts": {}}
+    
+    # Build DataFrame from inference logs
+    df = pd.DataFrame([log.input_features for log in recent_logs])
+    
+    feature_drifts = {}
+    for feature, stats in baseline_stats.items():
+        if feature in df.columns and stats.get("std", 0) > 0:
+            current_mean = df[feature].mean()
+            # Normalized mean-shift drift formula
+            raw_drift = abs(current_mean - stats["mean"]) / stats["std"]
+            normalized_drift = min(raw_drift / 3.0, 1.0)
+            feature_drifts[feature] = normalized_drift
+    
+    # Global drift score (average of all feature drifts)
+    if feature_drifts:
+        global_drift = sum(feature_drifts.values()) / len(feature_drifts)
+    else:
+        global_drift = 0.0
+    
+    return {
+        "drift_score": global_drift,
+        "feature_drifts": feature_drifts
+    }
+```
+
+---
+
+### A.2 LLM Decision Engine — Structured Prompt and Response Validation
+
+```python
+# llm_decision_engine.py — LLM prompt construction and validation
+
+def _build_prompt(self, context: dict) -> str:
+    """Build structured prompt for LLM decision-making."""
+    prompt = f"""You are an ML Operations decision engine. Analyze the following 
+monitoring data and respond with a JSON object containing 'analysis' 
+(your reasoning) and 'strategy' (either 'RETRAIN' or 'ALERT').
+
+Current Model: {context['model_name']} v{context['version']}
+Framework: {context['framework']}
+Drift Score: {context['drift_score']:.4f}
+Performance Delta: {context['performance_delta']:.4f}
+Severity: {context['severity']}
+Request Count: {context['request_count']}
+Average Latency: {context['avg_latency']:.2f}ms
+
+Rules:
+- Only respond with valid JSON
+- strategy must be exactly 'RETRAIN' or 'ALERT'
+- If uncertain, choose 'ALERT'
+
+Respond ONLY with the JSON object, no markdown or commentary."""
+    return prompt
+
+
+def _validate_response(self, response: dict) -> bool:
+    """Validate LLM response against expected schema."""
+    required_keys = {"analysis", "strategy"}
+    if not required_keys.issubset(response.keys()):
+        return False
+    if response["strategy"] not in ["RETRAIN", "ALERT"]:
+        return False
+    return True
+```
+
+---
+
+### A.3 Training Runner — Optuna Hyperparameter Optimization
+
+```python
+# training_runner.py — Bayesian HPO with model-specific search spaces
+
+def _run_hyperparameter_search(self, X_train, y_train, model_class: str,
+                                 n_trials: int = 10):
+    """Bayesian hyperparameter optimization using Optuna."""
+    
+    def objective(trial):
+        if model_class == "RandomForestClassifier":
+            params = {
+                "n_estimators": trial.suggest_int("n_estimators", 50, 300),
+                "max_depth": trial.suggest_int("max_depth", 3, 20),
+            }
+            model = RandomForestClassifier(**params, random_state=42)
+        elif model_class == "XGBClassifier":
+            params = {
+                "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
+                "max_depth": trial.suggest_int("max_depth", 3, 10),
+            }
+            model = XGBClassifier(**params, random_state=42,
+                                   use_label_encoder=False, eval_metric="mlogloss")
+        elif model_class == "LogisticRegression":
+            params = {
+                "C": trial.suggest_float("C", 0.01, 10.0, log=True),
+            }
+            model = LogisticRegression(**params, max_iter=1000, random_state=42)
+        
+        # 3-fold cross-validation with F1-weighted scoring
+        scores = cross_val_score(model, X_train, y_train, cv=3,
+                                  scoring="f1_weighted")
+        return scores.mean()
+    
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=n_trials)
+    return study.best_params, study.best_value
+```
+
+---
+
+### A.4 Model Evaluator — Candidate vs. Production Comparison
+
+```python
+# model_evaluator.py — Model evaluation and promotion decision
+
+async def evaluate_candidate(self, candidate_metrics: dict,
+                               production_metrics: dict,
+                               task_type: str = "classification") -> dict:
+    """Compare candidate model against production baseline."""
+    
+    if not production_metrics:
+        # First real training — auto-promote
+        return {"promoted": True, "reason": "No existing baseline"}
+    
+    if task_type == "classification":
+        accuracy_delta = (candidate_metrics.get("accuracy", 0) -
+                         production_metrics.get("accuracy", 0))
+        f1_delta = (candidate_metrics.get("f1_score", 0) -
+                   production_metrics.get("f1_score", 0))
+        
+        improvement_threshold = 0.01  # 1% minimum improvement
+        promoted = accuracy_delta >= improvement_threshold
+        
+        return {
+            "promoted": promoted,
+            "accuracy_delta": accuracy_delta,
+            "f1_delta": f1_delta,
+            "threshold": improvement_threshold,
+            "reason": "Meets threshold" if promoted else "Below threshold"
+        }
+    
+    elif task_type == "regression":
+        r2_delta = (candidate_metrics.get("r2_score", 0) -
+                   production_metrics.get("r2_score", 0))
+        mse_delta = (production_metrics.get("mse", 0) -
+                    candidate_metrics.get("mse", 0))  # Lower MSE is better
+        
+        promoted = r2_delta >= 0.01
+        return {
+            "promoted": promoted,
+            "r2_delta": r2_delta,
+            "mse_delta": mse_delta,
+        }
+```
+
+---
+
+### A.5 Policy Evaluator — Guardrails Enforcement
+
+```python
+# policy_evaluator.py — Policy validation for autonomous decisions
+
+async def evaluate_policies(self, decision: dict, model_id: str,
+                              db: AsyncSession) -> dict:
+    """Evaluate decision against all active policy rules."""
+    
+    policies = await self._get_active_policies(db)
+    violations = []
+    
+    for policy in policies:
+        if policy.policy_type == "freeze_window":
+            if self._is_in_freeze_window(policy.config):
+                violations.append("Deployment freeze window active")
+        
+        elif policy.policy_type == "gpu_limit":
+            max_gpu = policy.config.get("max_gpu_per_job", 8)
+            if decision.get("gpu_requested", 0) > max_gpu:
+                violations.append(f"GPU request exceeds limit ({max_gpu})")
+        
+        elif policy.policy_type == "daily_cost_cap":
+            max_cost = policy.config.get("max_daily_cost", 500)
+            if decision.get("projected_cost", 0) > max_cost:
+                violations.append(f"Projected cost exceeds cap (${max_cost})")
+        
+        elif policy.policy_type == "retrain_rate_limit":
+            max_retrains = policy.config.get("max_per_24h", 50)
+            recent_count = await self._count_recent_retrains(model_id, db)
+            if recent_count >= max_retrains:
+                violations.append(f"Rate limit reached ({max_retrains}/24h)")
+    
+    return {
+        "approved": len(violations) == 0,
+        "violations": violations
+    }
+```
+
+---
+
+### A.6 Automation Executor — Drift Classification and Strategy Mapping
+
+```python
+# automation_executor.py — Drift analysis and strategy selection
+
+def _classify_drift(self, drift_score: float, feature_drifts: dict) -> str:
+    """Classify drift type based on score and feature distribution."""
+    if drift_score < 0.1:
+        return "no_drift"
+    
+    high_drift_features = [f for f, d in feature_drifts.items() if d > 0.3]
+    total_features = len(feature_drifts)
+    
+    if len(high_drift_features) > total_features * 0.5:
+        return "concept_drift"   # Widespread → full retraining
+    else:
+        return "feature_drift"   # Isolated → targeted tuning
+
+
+# Strategy mapping
+STRATEGY_MAP = {
+    "concept_drift": "full_search",    # Full HPO with all enhancements
+    "feature_drift": "quick_tune",     # Targeted hyperparameter tuning
+    "no_drift":      "incremental",    # Minimal retraining with defaults
+}
+```
+
+---
+
+## Appendix B: Screenshots
+
+> **Instructions:** Take screenshots of each page from your running application and insert them below. Each screenshot should be full-width, centered, and captioned.
+
+### B.1 Dashboard Page
+> **[Insert: Screenshot of Dashboard page]**
+> *Caption: Figure B.1: Dashboard Page — System overview with model health, drift trends, and key metrics*
+
+### B.2 Dataset Upload Page
+> **[Insert: Screenshot of Dataset Upload page]**
+> *Caption: Figure B.2: Dataset Upload Page — CSV upload with baseline profiling results*
+
+### B.3 Models Page
+> **[Insert: Screenshot of Models page]**
+> *Caption: Figure B.3: Models Page — Model registry with version history and promotion controls*
+
+### B.4 Training Page
+> **[Insert: Screenshot of Training page]**
+> *Caption: Figure B.4: Training Page — Training job management with configuration and status tracking*
+
+### B.5 Inference Page
+> **[Insert: Screenshot of Inference page]**
+> *Caption: Figure B.5: Inference Page — Live prediction interface with input form and results*
+
+### B.6 Monitoring Page
+> **[Insert: Screenshot of Monitoring page]**
+> *Caption: Figure B.6: Monitoring Page — Real-time drift visualization, severity alerts, and monitoring signals*
+
+### B.7 Automation Page
+> **[Insert: Screenshot of Automation page]**
+> *Caption: Figure B.7: Automation Page — LLM decision log, execution status, and approval workflows*
+
+### B.8 Policies Page
+> **[Insert: Screenshot of Policies page]**
+> *Caption: Figure B.8: Policies Page — Guardrail configuration with freeze windows, cost limits, and rate limits*
+
+---
+
+> **Formatting Notes:**
+> - Label each appendix (A, B)
+> - Code snippets: use monospace font (Courier New or Consolas), size 10
+> - Screenshots: high-resolution, centered, full-width
+> - Each screenshot needs a caption (Figure B.1, B.2, etc.)

@@ -1,0 +1,489 @@
+# CHAPTER 3: PROJECT DESCRIPTION (~12 pages)
+
+---
+
+## 3.1 Front End
+
+The frontend of the Autonomous ML Lifecycle Platform is built using **Vite + React (JSX)** — a modern, fast, and lightweight JavaScript framework for building interactive user interfaces. The frontend communicates with the FastAPI backend via RESTful API calls using Axios.
+
+### 3.1.1 Technologies Used
+
+| Technology | Purpose |
+|---|---|
+| React (JSX) | Component-based UI framework |
+| Vite | Build tool and development server with Hot Module Replacement (HMR) |
+| Axios | HTTP client for API communication |
+| React Router | Client-side routing for single-page application navigation |
+| Recharts / Chart.js | Data visualization (bar charts, line charts, pie charts) |
+| CSS (Vanilla) | Styling with modern design patterns |
+
+### 3.1.2 Frontend Pages
+
+The frontend consists of **8 dedicated pages**, each providing a specific functional capability:
+
+**1. Dashboard Page ([Dashboard.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/Dashboard.jsx) — 24,701 bytes)**
+
+The main entry point of the application. Provides a system-level overview including:
+- Active model count and health status
+- Recent drift score trends with visual indicators
+- Key performance metrics at a glance
+- Recent automation decisions and their outcomes
+- Quick navigation links to detailed sections
+
+**2. Dataset Upload Page ([DatasetUpload.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/DatasetUpload.jsx) — 21,737 bytes)**
+
+Allows users to upload CSV datasets and view profiling results:
+- Drag-and-drop or file browser-based CSV upload
+- Automatic column schema extraction and display
+- Baseline statistics visualization (mean, standard deviation, missing count per feature)
+- Dataset metadata display (row count, column count, data types)
+
+**3. Models Page ([Models.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/Models.jsx) — 27,063 bytes)**
+
+Comprehensive model registry browser:
+- List of all registered models with status indicators (active/inactive/archived)
+- Version history timeline with expandable metadata
+- Model promotion and rollback capabilities
+- Side-by-side version comparison
+- Framework and model class information
+
+**4. Training Page ([Training.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/Training.jsx) — 35,990 bytes)**
+
+Training job management interface:
+- Training configuration form with strategy selection
+- Real-time job status tracking (queued/running/completed/failed)
+- Training logs and progress visualization
+- Hyperparameter search results and convergence plots
+- Feature selection results and model leaderboard
+
+**5. Inference Page ([Inference.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/Inference.jsx) — 37,329 bytes)**
+
+Live prediction interface:
+- Feature input form dynamically generated from model schema
+- Real-time prediction results with confidence scores
+- Request/response logging table
+- Latency metrics visualization
+- Historical inference log browser
+
+**6. Monitoring Page ([Monitoring.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/Monitoring.jsx) — 35,302 bytes)**
+
+Real-time drift monitoring dashboard:
+- Global drift score gauge with severity coloring
+- Per-feature drift breakdown with bar charts
+- Performance trend line charts
+- Alert log with severity classification
+- Monitoring signal history
+
+**7. Automation Page ([Automation.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/Automation.jsx) — 44,371 bytes)**
+
+LLM decision and autonomous retraining management:
+- Decision log with LLM analysis text
+- Automation trigger buttons for manual drift checks
+- Execution status tracking (pending/approved/executing/completed)
+- Approval workflow interface for high-severity decisions
+- Complete automation audit trail
+
+**8. Policies Page ([Policies.jsx](file:///c:/Users/nithi/Projects/autonomous-ml-platform/automl-frontend/src/pages/Policies.jsx) — 27,964 bytes)**
+
+Guardrail and policy configuration:
+- Freeze window management (start/end dates)
+- GPU and cost limit configuration
+- Retraining rate limit settings
+- Severity-based auto-approval rules
+- Confidence threshold adjustment
+- Policy rule enable/disable toggles
+
+---
+
+## 3.2 Back End
+
+The backend is built using **FastAPI**, a modern, high-performance Python web framework with native async support. It handles all server-side logic including data processing, model training, inference serving, drift monitoring, LLM interaction, policy evaluation, and automation orchestration.
+
+### 3.2.1 Technologies Used
+
+**Table 3.1: Technology Stack Summary**
+
+| Technology | Version | Purpose |
+|---|---|---|
+| FastAPI | Latest | Asynchronous REST API framework |
+| Uvicorn | Standard | ASGI server for FastAPI |
+| SQLAlchemy | Latest | Async ORM for PostgreSQL |
+| asyncpg | Latest | Async PostgreSQL driver |
+| PostgreSQL | 15 | Relational database for metadata, logs, and states |
+| MinIO | Latest | S3-compatible object storage for models and datasets |
+| Ollama + LLaMA3 | Latest | Local LLM inference server |
+| scikit-learn | Latest | Machine learning model training and evaluation |
+| XGBoost | Latest | Gradient boosting model training |
+| Optuna | Latest | Bayesian hyperparameter optimization |
+| imbalanced-learn | Latest | SMOTE for class imbalance handling |
+| Pandas | Latest | Data manipulation and analysis |
+| joblib | Latest | Model serialization |
+| Prometheus Client | Latest | Metrics exposition for observability |
+| HTTPX | Latest | Async HTTP client for Ollama API calls |
+| APScheduler | Latest | Background job scheduling for monitoring |
+| Docker | Latest | Containerization and training isolation |
+
+### 3.2.2 Backend Architecture
+
+The backend follows a **layered service architecture**:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    API Layer (FastAPI)                     │
+│   Routes: datasets, models, training, inference,          │
+│           monitoring, automation, policies                │
+├──────────────────────────────────────────────────────────┤
+│                   Service Layer                           │
+│   DatasetService, ModelRegistryService, InferenceService,│
+│   MonitoringService, LLMDecisionEngine, PolicyEvaluator, │
+│   TrainingOrchestrator, TrainingRunner, ModelEvaluator,  │
+│   AutomationExecutor, ModelServingService, SignalService  │
+├──────────────────────────────────────────────────────────┤
+│                    Data Layer                             │
+│   SQLAlchemy Models → PostgreSQL (asyncpg)               │
+│   MinIO Client → Object Storage                          │
+├──────────────────────────────────────────────────────────┤
+│                 Infrastructure Layer                      │
+│   Docker Compose, Prometheus, APScheduler                │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 3.2.3 API Endpoints
+
+The backend exposes RESTful endpoints organized by resource:
+
+| Endpoint Group | Base Path | Key Operations |
+|---|---|---|
+| Datasets | `/api/datasets` | Upload, list, get details, get statistics |
+| Models | `/api/models` | Register, list, get versions, promote, rollback |
+| Training | `/api/training` | Start job, get status, list jobs, get results |
+| Inference | `/api/inference` | Predict, list logs, get metrics |
+| Monitoring | `/api/monitoring` | Trigger check, get metrics, get alerts |
+| Automation | `/api/automation` | Get decisions, approve/reject, execute, get logs |
+| Policies | `/api/policies` | Create, update, list, enable/disable rules |
+
+---
+
+## 3.3 Project Objectives
+
+The key objectives and expected outcomes of the project are:
+
+1. **Autonomous Drift Detection**: Build a real-time monitoring engine that computes statistical data drift against stored baseline distributions using normalized mean-shift formulas, detecting feature-level and global drift without manual intervention.
+
+2. **Intelligent Decision-Making**: Implement an LLM-powered decision engine that analyzes multi-dimensional system health indicators (drift score, performance delta, latency, severity) and produces validated, structured JSON decisions.
+
+3. **Governed Retraining Automation**: Implement a complete policy governance framework that enforces safety constraints (freeze windows, cost caps, rate limits, severity-based approvals) before any automated action is executed.
+
+4. **Optimized Model Training**: Build a multi-phase training pipeline that adaptively selects training intensity based on drift type, including feature selection, class rebalancing, Bayesian hyperparameter optimization, automated model selection, and ensemble learning.
+
+5. **Safe Model Promotion**: Develop a rigorous evaluation framework that compares candidate models against production baselines using configurable improvement thresholds and promotes only demonstrably superior models.
+
+6. **Complete Model Governance**: Maintain immutable version lineage with parent-child tracking, full training metadata, and a comprehensive automation audit trail for compliance and reproducibility.
+
+---
+
+## 3.4 Problem Definition
+
+**Problem**: Machine learning models deployed in production environments suffer from **silent performance degradation** due to data drift — shifts in the statistical properties of incoming data relative to training data. Traditional MLOps systems detect drift but rely entirely on human operators to analyze, decide, retrain, evaluate, and redeploy models, creating a significant operational bottleneck.
+
+**Need for the Proposed Solution**:
+- Manual retraining workflows are **slow** (hours to days), **inconsistent** (dependent on individual expertise), and **unscalable** (cannot manage multiple models simultaneously).
+- Hardcoded threshold-based automation lacks **contextual reasoning** and cannot adapt to varying drift scenarios.
+- Existing systems do not provide **integrated governance** — there are no automated guardrails for cost, resource usage, or escalation.
+- The absence of **version lineage** makes it impossible to trace model evolution and audit retraining decisions.
+
+**Solution**: The Autonomous ML Lifecycle Platform closes the loop between monitoring and action by introducing LLM-structured decision-making, strategy-driven retraining, multi-phase model optimization, policy-governed execution, and immutable version management — creating a self-healing ML infrastructure.
+
+---
+
+## 3.5 Workflow Diagram
+
+The complete platform workflow follows a seven-phase pipeline:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PHASE A: BASELINE INITIALIZATION              │
+│  Dataset Upload → Baseline Profiling → Model Registration →     │
+│  Baseline Training (v1) → Artifact Storage → Version Creation   │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  PHASE B: LIVE INFERENCE & MONITORING            │
+│  Prediction Request → Model Loading (TTL cache) →               │
+│  Prediction → Latency Measurement → Inference Log               │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  PHASE C: DRIFT DETECTION & ALERTING            │
+│  Compute Drift (mean-shift) → Classify Severity →              │
+│  Generate Alerts → LLM Decision Engine → Structured Decision    │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    PHASE D: POLICY & GUARDRAILS                  │
+│  Freeze Window Check → GPU Limit → Cost Cap → Rate Limit →     │
+│  Severity Filter → Confidence Threshold → Approve/Block         │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  PHASE E: AUTONOMOUS RETRAINING                  │
+│  Drift Classification → Strategy Selection → Config Generation →│
+│  Early Stopping Check → Feature Selection → Data Rebalancing →  │
+│  Optuna HPO → Model Selection → Threshold Optimization →        │
+│  Ensemble Learning                                               │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                PHASE F: EVALUATION & PROMOTION                   │
+│  Candidate vs. Production Comparison → Metric Delta Check →    │
+│  Promote if Better → Register Version → Immutable Lineage      │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     PHASE G: REDEPLOYMENT                        │
+│  Cache Invalidation (TTL) → Load New Model → Serve Predictions  │
+│  (Zero-Downtime Model Switching)                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+> **[Insert: Figure 3.3 — Workflow Diagram of the Platform]**
+> *Redraw the above diagram neatly in a diagramming tool (draw.io, Lucidchart, or PowerPoint) for the final report.*
+
+---
+
+## 3.6 Description of Modules
+
+**Table 3.3: Module Description Summary**
+
+The platform consists of 12 core modules, each responsible for a specific functional area:
+
+### Module 1: Dataset Service ([dataset_service.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/dataset_service.py))
+**Responsibility**: Dataset lifecycle management.
+- Handles CSV dataset upload, validation using Pandas, and storage in MinIO.
+- Generates unique dataset IDs (UUID).
+- Computes and stores baseline statistical profiles (mean, standard deviation, missing count per numeric feature).
+- Extracts and persists column schema information.
+
+### Module 2: Model Registry Service ([model_registry_service.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/model_registry_service.py))
+**Responsibility**: Model and version management.
+- Registers new models with framework and model class specification.
+- Manages model lifecycle states (active, inactive, archived).
+- Creates immutable model versions with metrics, hyperparameters, and artifact paths.
+- Handles model promotion (updating current production version) and rollback.
+- Maintains parent-child version lineage for complete audit trails.
+
+### Module 3: Inference Service ([inference_service.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/inference_service.py))
+**Responsibility**: Real-time prediction serving.
+- Loads active model artifacts from MinIO with TTL-aware in-memory caching (30-minute TTL).
+- Constructs input DataFrames, selects numeric columns, and generates predictions.
+- Measures and records inference latency (Prometheus histogram).
+- Logs all inference requests (features, prediction, latency) to the inference_logs table.
+
+### Module 4: Monitoring Service ([monitoring_service.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/monitoring_service.py))
+**Responsibility**: Statistical drift detection and system health monitoring.
+- Computes per-feature drift using normalized mean-shift against baseline statistics.
+- Aggregates feature drifts into a global drift score.
+- Uses a rolling window of the 100 most recent inference logs.
+- Computes performance deltas, system metrics (request count, latency), and severity classification.
+- Generates structured alerts (DRIFT_ALERT, PERFORMANCE_ALERT, LATENCY_ALERT).
+
+### Module 5: LLM Decision Engine ([llm_decision_engine.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/llm_decision_engine.py))
+**Responsibility**: AI-driven retraining decision-making.
+- Constructs structured prompts with drift context, performance data, and system metrics.
+- Communicates with LLaMA3 via Ollama's HTTP API.
+- Parses and validates structured JSON responses (analysis + strategy).
+- Enforces enum validation, schema validation, and markdown/commentary rejection.
+- Implements fallback to `ALERT` strategy for uncertain or invalid responses.
+
+### Module 6: Policy Evaluator ([policy_evaluator.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/policy_evaluator.py))
+**Responsibility**: Safety and governance enforcement.
+- Evaluates decisions against configurable policy rules.
+- Checks for freeze windows, GPU limits, daily cost caps, and retraining rate limits.
+- Applies severity-based filtering (auto-approve low/medium, escalate high/critical).
+- Validates confidence thresholds and cost projections.
+- Returns approve/block/escalate decisions with reasoning.
+
+### Module 7: Automation Executor ([automation_executor.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/automation_executor.py))
+**Responsibility**: End-to-end autonomous pipeline orchestration.
+- Orchestrates the full retrain → evaluate → promote pipeline.
+- Manages idempotent execution with cooldown periods.
+- Coordinates between drift analysis, strategy selection, training, evaluation, and promotion.
+- Logs all automation events to the automation_logs table.
+- Handles state management via the automation_state table.
+
+### Module 8: Training Orchestrator ([training_orchestrator.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/training_orchestrator.py))
+**Responsibility**: Training job management and resource allocation.
+- Creates and manages training job records (queued/running/completed/failed).
+- Generates training configurations based on drift type and strategy mapping.
+- Adjusts training resources based on dataset size.
+- Supports both in-process (demo) and Docker-containerized (production) training.
+- Implements early stopping based on training history analysis.
+
+### Module 9: Training Runner ([training_runner.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/training_runner.py))
+**Responsibility**: Multi-phase model training execution.
+- Executes the 6-phase training pipeline:
+  1. Feature Selection (model importance-based)
+  2. Data Rebalancing (SMOTE for class imbalance)
+  3. Hyperparameter Optimization (Optuna with model-specific search spaces)
+  4. Automated Model Selection (multi-algorithm comparison)
+  5. Threshold Optimization (classification threshold tuning)
+  6. Ensemble Learning (weighted voting)
+- Produces trained model artifacts, leaderboard results, and comprehensive training metrics.
+
+### Module 10: Model Evaluator ([model_evaluator.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/model_evaluator.py))
+**Responsibility**: Candidate model evaluation against production baselines.
+- Compares classification metrics: accuracy delta ≥ 1%, F1-score comparison.
+- Compares regression metrics: R² delta ≥ 1%, MSE comparison (lower is better).
+- Uses configurable improvement thresholds.
+- Auto-promotes first-time models (no existing baseline).
+- Returns detailed evaluation reports with promotion recommendations.
+
+### Module 11: Model Serving Service ([model_serving_service.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/model_serving_service.py))
+**Responsibility**: Model artifact loading and caching.
+- Downloads model artifacts from MinIO.
+- Implements TTL-aware in-memory caching for performance.
+- Deserializes models using joblib.
+- Manages cache invalidation on model promotion.
+
+### Module 12: Signal Service ([signal_service.py](file:///c:/Users/nithi/Projects/autonomous-ml-platform/backend/app/services/signal_service.py))
+**Responsibility**: Cross-service coordination and event signaling.
+- Provides publish-subscribe signaling between modules.
+- Coordinates monitoring triggers, training completions, and promotion events.
+- Enables decoupled communication between service components.
+
+---
+
+## 3.7 Database Design
+
+The platform uses **PostgreSQL 15** with async access via **SQLAlchemy + asyncpg**. The database contains 9 tables, each serving a specific data management purpose.
+
+**Table 3.2: Database Schema Overview**
+
+### Table 1: `datasets`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique dataset identifier |
+| name | VARCHAR | Human-readable dataset name |
+| file_path | VARCHAR | MinIO storage path (`datasets/{id}.csv`) |
+| column_schema | JSONB | Extracted column names and data types |
+| baseline_stats | JSONB | Per-column mean, std, and missing count |
+| row_count | INTEGER | Number of rows in the dataset |
+| created_at | TIMESTAMP | Upload timestamp |
+
+### Table 2: `model_registry`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique model identifier |
+| name | VARCHAR | Model name |
+| dataset_id | UUID (FK) | Reference to datasets table |
+| framework | VARCHAR | ML framework (e.g., `sklearn`) |
+| model_class | VARCHAR | Model class (e.g., `RandomForestClassifier`) |
+| current_version | INTEGER | Active production version number |
+| status | VARCHAR | Lifecycle state: active/inactive/archived |
+| created_at | TIMESTAMP | Registration timestamp |
+
+### Table 3: `model_versions`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique version identifier |
+| model_id | UUID (FK) | Reference to model_registry table |
+| version_number | INTEGER | Sequential version number (v1, v2, ...) |
+| artifact_path | VARCHAR | MinIO path to serialized model |
+| metrics | JSONB | Accuracy, F1, R², MSE, leaderboard, etc. |
+| hyperparameters | JSONB | Best hyperparameters from training |
+| parent_version | INTEGER | Parent version number (lineage tracking) |
+| training_job_id | UUID (FK) | Reference to training_jobs table |
+| created_at | TIMESTAMP | Version creation timestamp |
+
+### Table 4: `training_jobs`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique job identifier |
+| model_id | UUID (FK) | Reference to model_registry table |
+| status | VARCHAR | queued/running/completed/failed/early_stopped |
+| config | JSONB | Training configuration (strategy, phases, params) |
+| result_metrics | JSONB | Training results and evaluation metrics |
+| started_at | TIMESTAMP | Job start timestamp |
+| completed_at | TIMESTAMP | Job completion timestamp |
+
+### Table 5: `inference_logs`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique log entry identifier |
+| model_id | UUID (FK) | Reference to model_registry table |
+| input_features | JSONB | Input feature values for the prediction |
+| prediction | VARCHAR | Model prediction output |
+| latency_ms | FLOAT | Inference latency in milliseconds |
+| version_number | INTEGER | Model version used for prediction |
+| created_at | TIMESTAMP | Inference timestamp |
+
+### Table 6: `monitoring_metrics`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique metric record identifier |
+| model_id | UUID (FK) | Reference to model_registry table |
+| drift_score | FLOAT | Global drift score (0 to 1) |
+| feature_drifts | JSONB | Per-feature drift breakdown |
+| performance_delta | FLOAT | Change in model performance |
+| request_count | INTEGER | Number of recent inference requests |
+| avg_latency | FLOAT | Average inference latency (ms) |
+| severity | VARCHAR | low/medium/high/critical |
+| created_at | TIMESTAMP | Monitoring check timestamp |
+
+### Table 7: `automation_logs`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique log entry identifier |
+| model_id | UUID (FK) | Reference to model_registry table |
+| event_type | VARCHAR | Alert/decision/execution/lifecycle event type |
+| details | JSONB | Full event metadata and reasoning |
+| action | VARCHAR | Action taken (RETRAIN/ALERT/PROMOTE/etc.) |
+| status | VARCHAR | Event status (pending/approved/executed/blocked) |
+| created_at | TIMESTAMP | Event timestamp |
+
+### Table 8: `automation_state`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique state identifier |
+| model_id | UUID (FK) | Reference to model_registry table |
+| last_action | VARCHAR | Most recent action performed |
+| last_action_time | TIMESTAMP | Timestamp of last action |
+| cooldown_until | TIMESTAMP | Cooldown expiry time |
+| consecutive_count | INTEGER | Count of consecutive same-type actions |
+
+### Table 9: `policies`
+
+| Column | Data Type | Description |
+|---|---|---|
+| id | UUID (PK) | Unique policy identifier |
+| name | VARCHAR | Policy rule name |
+| policy_type | VARCHAR | Type (freeze_window/gpu_limit/cost_cap/etc.) |
+| config | JSONB | Policy configuration parameters |
+| enabled | BOOLEAN | Whether the policy is currently active |
+| created_at | TIMESTAMP | Policy creation timestamp |
+| updated_at | TIMESTAMP | Last modification timestamp |
+
+> **[Insert: Figure 3.4 — Entity-Relationship Diagram showing all 9 tables and their foreign key relationships]**
+> *Create the ER diagram using a tool like draw.io, dbdiagram.io, or MySQL Workbench and include it as a centered figure.*
+
+---
+
+> **Formatting Notes:**
+> - Apply DinPro Regular font; Headings at size 14, Body text at size 12
+> - Line spacing: 1.5, Margins: 1 inch on all sides
+> - Justify all body text; Center-align all tables and diagrams
+> - Number all headings (3.1, 3.2, etc.) and tables (Table 3.1, Table 3.2, etc.)
