@@ -33,7 +33,9 @@ The platform runs a continuous self-healing loop:
 4. **Monitoring Engine**: Triggers every 5 minutes to calculate drift scores (PSI and feature shift) and alert on threshold violations.
 5. **LLM Decision Engine**: Interfaces with Ollama (`llama3`) to analyze drift and formulate structured retraining strategies.
 6. **Policy & Guardrails**: Evaluates decisions against a 7-checkpoint policy (confidences, cost caps, GPU allocations, time freeze windows, retraining rate limits, production blocks, and severity filters).
-7. **Training Runner & Orchestrator**: In-process or Docker-based training pipelines supporting HPO (Optuna), data rebalancing, feature selection, threshold optimization, and ensembling.
+7. **Training Runner & Orchestrator**: In-process or Docker-based training pipelines supporting HPO (Optuna), data rebalancing, feature selection, threshold optimization, and ensembling. Fully supports **13 algorithms** out-of-the-box:
+   * *Classification*: RandomForest, GradientBoosting, AdaBoost, ExtraTrees, LogisticRegression, DecisionTree, SVC, KNN, XGBoost, and LightGBM.
+   * *Regression*: LinearRegression, Ridge, Lasso, and regression-only variants of the above tree/ensemble models.
 8. **Model Evaluator**: Compares newly trained candidate model metrics against the current active baseline to determine promotion/rollback safety.
 9. **Observability**: Exposes real-time Prometheus metrics at `/metrics` (decisions, violations, latency histograms, and counts).
 10. **Frontend**: React-based dashboard visualizing models, training runs, monitoring metrics, drift trends, and policy approvals.
@@ -124,22 +126,20 @@ To test the self-healing retraining loop:
 
 ### Step 1: Upload a Dataset
 1. Go to the **Dataset** tab in the dashboard.
-2. Upload the sample dataset provided in `data/sample_dataset.csv`.
-3. The platform will automatically profile the dataset, calculate baseline means/stds, and save it in MinIO.
+2. Upload the sample dataset provided in `data/loan_approval_test.csv`.
+3. The platform will automatically profile the dataset, calculate baseline distributions, and save it in MinIO.
 
 ### Step 2: Register a Model
-1. Go to the **Models** tab and register a new model (e.g. `RandomForestClassifier`).
-2. Upon registration, the backend automatically triggers **baseline training (v1)** on the uploaded dataset, computes actual performance metrics, and sets the model status to **Active**.
+1. Go to the **Models** tab and register a new model (e.g., name `loan_predictor`).
+2. Select your desired algorithm (e.g., `LightGBM` or `RandomForestClassifier`) from the unified algorithm list.
+3. Upon registration, the backend automatically triggers **baseline training (v1)** on the uploaded dataset, computes actual performance metrics, and sets the model status to **Active**.
 
 ### Step 3: Simulate Traffic and Introduce Drift
 1. Run the traffic simulator script to send normal requests to the active model endpoint:
    ```bash
-   python scripts/simulate_traffic.py --model_id <your-model-id> --requests 100
+   python scripts/simulate_traffic.py --duration 120 --rps 5.0 --drift-start 0.3
    ```
-2. Introduce feature drift using the drift simulator:
-   ```bash
-   python scripts/simulate_feature_drift.py --model_id <your-model-id> --drift_scale 3.0
-   ```
+   *(This starts healthy, then injects out-of-distribution high-risk candidates to trigger feature drift).*
 
 ### Step 4: Observe Self-Healing
 1. The **Monitoring Engine** scheduler (runs every 5 mins) will pick up the drifted logs.
@@ -147,3 +147,15 @@ To test the self-healing retraining loop:
 3. The **LLM Decision Engine** generates a retraining configuration.
 4. The **Policy Guardrails** checks the confidence and daily costs. If approved, the **Automation Executor** starts retraining.
 5. Once a candidate wins (e.g., v2 outperforms the degraded baseline), it is promoted to **Active** production status automatically!
+
+---
+
+## 🧪 Automated Verification Suite
+
+A comprehensive verification suite is included to validate the core ML training and tuning pipeline in isolation (bypassing the database & MinIO):
+
+* **Run Verification**:
+  ```powershell
+  $env:DATABASE_URL="postgresql+asyncpg://dummy:dummy@localhost:5432/dummy"; $env:MINIO_ENDPOINT="localhost:9000"; $env:MINIO_ACCESS_KEY="dummy"; $env:MINIO_SECRET_KEY="dummy"; $env:MINIO_BUCKET="dummy"; $env:PYTHONIOENCODING="utf-8"; .\venv\Scripts\python.exe verify_algorithms.py
+  ```
+* **Coverage**: Runs 75 test cases verifying case-insensitive alias mapping, training of all 10 classifiers and 12 regressors, model selector leaderboards, Optuna trial objectives, and parameter isolation during fallback states.
