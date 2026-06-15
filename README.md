@@ -42,6 +42,19 @@ The platform runs a continuous self-healing loop:
 
 ---
 
+## 🧑‍💻 What this project demonstrates
+
+This repository is intended as a demonstration of:
+
+- Designing and implementing a **closed-loop, drift-aware MLOps architecture** that covers dataset/model registries, monitoring, retraining, and promotion.
+- Using an **LLM-governed decision loop** with explicit policy guardrails (cost, severity, rate limits, freeze windows) to safely automate retraining and deployment.
+- Building an **end-to-end ML system** with FastAPI, PostgreSQL, MinIO, Ollama, and a React dashboard, all orchestrated via Docker Compose.
+- Implementing **production-style concerns**: model versioning, evaluation against baselines, observability with Prometheus, and verification scripts for the training pipeline.
+
+**Status:** Prototype but fully runnable end-to-end on a single machine using Docker Compose. Intended as a reference architecture / demo, not a hardened production deployment.
+
+---
+
 ## 🛠️ Prerequisites
 
 * [Docker Desktop](https://www.docker.com/products/docker-desktop)
